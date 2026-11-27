@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +27,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.ui.PlayerView
 import com.estehangettt.motogp.data.scraper.MotoMundoStreamExtractor
-import com.estehangettt.motogp.ui.theme.MotoGPBlack
 import com.estehangettt.motogp.ui.theme.MotoGPRed
 import com.estehangettt.motogp.ui.theme.GlassWhite
 
@@ -66,15 +66,16 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
         }
     }
 
-    // 3. Handle Orientasi & Fullscreen
+    // 3. Handle Orientasi & Fullscreen & KEEP SCREEN ON
     DisposableEffect(Unit) {
         val activity = context.findActivity()
-        // Set ke Landscape
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         
-        // Sembunyiin Status Bar
         val window = activity?.window
         if (window != null) {
+            // KUNCI LAYAR BIAR GAK MATI
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -82,9 +83,10 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
 
         onDispose {
             exoPlayer.release()
-            // Balikin ke Portrait & Munculin Status Bar
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (window != null) {
+                // LEPAS KUNCI LAYAR
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 WindowCompat.getInsetsController(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
             }
         }
@@ -107,12 +109,11 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
             }
         }
 
-        // Tombol Back
         IconButton(
             onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 24.dp, start = 24.dp) // Padding disesuaikan landscape
+                .padding(top = 24.dp, start = 24.dp)
                 .background(GlassWhite, RoundedCornerShape(50))
         ) {
             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -120,7 +121,6 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
     }
 }
 
-// Helper buat dapetin Activity dari Context
 fun Context.findActivity(): Activity? {
     var context = this
     while (context is ContextWrapper) {
