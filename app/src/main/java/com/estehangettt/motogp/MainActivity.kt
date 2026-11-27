@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.estehangettt.motogp.ui.HomeScreen
+import com.estehangettt.motogp.ui.navigation.AppNavigation
 import com.estehangettt.motogp.ui.theme.MotoGPReplayTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Black
                 ) {
-                    HomeScreen()
+                    AppNavigation()
                 }
             }
         }

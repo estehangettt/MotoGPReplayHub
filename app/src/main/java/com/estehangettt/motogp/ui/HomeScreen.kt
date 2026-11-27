@@ -28,7 +28,7 @@ import com.estehangettt.motogp.data.EventResponse
 import com.estehangettt.motogp.ui.theme.*
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
+fun HomeScreen(viewModel: HomeViewModel = viewModel(), onEventClick: (EventResponse) -> Unit) {
     val events by viewModel.events.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
@@ -76,7 +76,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(events) { event ->
-                    VideoPassCard(event)
+                    VideoPassCard(event, onClick = { onEventClick(event) })
                 }
             }
         }
@@ -84,7 +84,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
 }
 
 @Composable
-fun VideoPassCard(event: EventResponse) {
+fun VideoPassCard(event: EventResponse, onClick: () -> Unit) {
     // Ambil URL dari API
     val topImageUrl = event.assets?.find { it.type == "TOP" || it.type == "BACKGROUND" }?.path
     val flagUrl = event.assets?.find { it.type == "FLAG" }?.path
@@ -100,7 +100,7 @@ fun VideoPassCard(event: EventResponse) {
             .height(180.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF1A1A1A))
-            .bouncyClickable { /* Nanti buka ke halaman detail */ }
+            .bouncyClickable { onClick() }
     ) {
         // 1. Background Image (Foto Sirkuit/Pembalap)
         if (topImageUrl != null) {
