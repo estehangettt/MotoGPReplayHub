@@ -12,22 +12,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 
-// Efek Kaca (Frosted Glass)
 fun Modifier.glassmorphism(
     cornerRadius: Int = 16,
-    blurRadius: Int = 16,
     backgroundColor: androidx.compose.ui.graphics.Color = GlassWhite
 ) = this.then(
     Modifier
-        .blur(blurRadius.dp) // Efek blur khas iOS (Butuh Android 12+)
         .background(
             brush = Brush.verticalGradient(
-                colors = listOf(backgroundColor, backgroundColor.copy(alpha = 0.05f))
+                colors = listOf(
+                    backgroundColor.copy(alpha = 0.3f), 
+                    backgroundColor.copy(alpha = 0.05f)
+                )
             ),
             shape = RoundedCornerShape(cornerRadius.dp)
         )
@@ -38,7 +37,6 @@ fun Modifier.glassmorphism(
         )
 )
 
-// Efek Animasi Bouncy (iOS Style) pas diklik
 @Composable
 fun Modifier.bouncyClickable(onClick: () -> Unit): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
@@ -53,7 +51,7 @@ fun Modifier.bouncyClickable(onClick: () -> Unit): Modifier {
         .scale(scale)
         .clickable(
             interactionSource = interactionSource,
-            indication = null, // Hilangkan ripple bawaan Android, biar ala iOS
+            indication = null,
             onClick = onClick
         )
 }

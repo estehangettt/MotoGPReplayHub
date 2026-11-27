@@ -68,7 +68,7 @@ fun DetailScreen(event: EventResponse, onBackClick: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .glassmorphism(cornerRadius = 24, blurRadius = 20)
+                    .glassmorphism(cornerRadius = 24)
                     .padding(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
