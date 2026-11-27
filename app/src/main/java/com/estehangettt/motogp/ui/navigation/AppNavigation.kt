@@ -40,7 +40,6 @@ fun AppNavigation() {
                     event = event,
                     onBackClick = { navController.popBackStack() },
                     onSessionClick = { embedUrl ->
-                        // Encode URL biar aman masuk ke rute navigasi
                         val encodedUrl = URLEncoder.encode(embedUrl, "UTF-8")
                         navController.navigate("player/$encodedUrl")
                     }
@@ -53,7 +52,10 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val encodedUrl = backStackEntry.arguments?.getString("embedUrl") ?: ""
             val decodedUrl = URLDecoder.decode(encodedUrl, "UTF-8")
-            PlayerScreen(embedUrl = decodedUrl)
+            PlayerScreen(
+                embedUrl = decodedUrl,
+                onBackClick = { navController.popBackStack() }
+            )
         }
     }
 }

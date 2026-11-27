@@ -1,5 +1,6 @@
 package com.estehangettt.motogp.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -16,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,18 +32,16 @@ import kotlinx.coroutines.launch
 fun DetailScreen(
     event: EventResponse, 
     onBackClick: () -> Unit, 
-    onSessionClick: (String) -> Unit // Mengirim URL Embed (lplaygo)
+    onSessionClick: (String) -> Unit
 ) {
     val topImageUrl = event.assets?.find { it.type == "TOP" || it.type == "BACKGROUND" }?.path
     val flagUrl = event.assets?.find { it.type == "FLAG" }?.path
-    val trackImageUrl = event.circuit?.track?.assets?.simple?.path
     
     val scope = rememberCoroutineScope()
-    var isLoading by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var loadingSession by remember { mutableStateOf<String?>(null) } // Lacak sesi mana yang loading
     val scraper = remember { MotoMundoScraper() }
 
-    // URL DUMMY BUAT TES (Ganti pakai URL dinamis nanti)
-    // Gw pake URL Portugal dari prompt lo
     val testMotoMundoUrl = "https://motomundo.net/2026/11/motogp-2026-round-21-portuguesegp-algarve-watch-online/"
 
     Box(modifier = Modifier.fillMaxSize().background(MotoGPBlack)) {
@@ -66,7 +66,6 @@ fun DetailScreen(
 
             Spacer(modifier = Modifier.weight(0.3f))
 
-            // Kartu Kaca Info Sirkuit
             Column(
                 modifier = Modifier.fillMaxWidth().glassmorphism(cornerRadius = 24).padding(20.dp)
             ) {
@@ -98,7 +97,6 @@ fun DetailScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Tombol Sesi
             Text("PILIH SESI", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -113,22 +111,23 @@ fun DetailScreen(
                     Box(
                         modifier = Modifier.height(60.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF222222))
                             .bouncyClickable {
-                                isLoading = true
-                                scope.launch {
-                                    // Scrape URL Embed dari MotoMundo
-                                    val embedUrl = scraper.getEmbedUrl(testMotoMundoUrl, sesi)
-                                    isLoading = false
-                                    if (embedUrl != null) {
-                                        onSessionClick(embedUrl)
-                                    } else {
-                                        // Handle error (bisa pakai Toast nanti)
+                                if (loadingSession == null) {
+                                    loadingSession = sesi
+                                    scope.launch {
+                                        val embedUrl = scraper.getEmbedUrl(testMotoMundoUrl, sesi)
+                                        loadingSession = null
+                                        if (embedUrl != null) {
+                                            onSessionClick(embedUrl)
+                                        } else {
+                                            Toast.makeText(context, "Gagal nemu video $sesi di MotoMundo", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(color = MotoGPRed, modifier = Modifier.size(24.dp))
+                        if (loadingSession == sesi) {
+                            CircularProgressIndicator(color = MotoGPRed, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         } else {
                             Text(sesi, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
