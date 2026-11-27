@@ -3,9 +3,8 @@ package com.estehangettt.motogp.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -37,17 +36,17 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
         modifier = Modifier
             .fillMaxSize()
             .background(MotoGPBlack)
-            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(40.dp))
-        
         // Header / Logo
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 40.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_motogp_logo),
                 contentDescription = "MotoGP Logo",
                 modifier = Modifier.height(32.dp),
-                colorFilter = ColorFilter.tint(Color.White) 
+                colorFilter = ColorFilter.tint(Color.White)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
@@ -58,14 +57,12 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
         Text(
-            text = "Season 2026",
-            color = TextGray,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 12.dp)
+            text = "CURRENT SEASON",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
         )
 
         if (isLoading) {
@@ -73,13 +70,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 CircularProgressIndicator(color = MotoGPRed)
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            // Pakai LazyColumn (List Vertikal) biar mirip VideoPass
+            LazyColumn(
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(events) { event ->
-                    CircuitCard(event)
+                    VideoPassCard(event)
                 }
             }
         }
@@ -87,31 +84,35 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
 }
 
 @Composable
-fun CircuitCard(event: EventResponse) {
-    // Ambil URL gambar layout sirkuit dari API
+fun VideoPassCard(event: EventResponse) {
+    // Ambil URL dari API
+    val topImageUrl = event.assets?.find { it.type == "TOP" || it.type == "BACKGROUND" }?.path
+    val flagUrl = event.assets?.find { it.type == "FLAG" }?.path
     val trackImageUrl = event.circuit?.track?.assets?.simple?.path
+
+    // Format tanggal dari API (2026-03-01T00:00:00 -> 01 MAR)
+    val dateText = event.date_start?.substring(5, 10)?.replace("-", " ") ?: "TBA"
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp)
+            .height(180.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF1A1A1A))
             .bouncyClickable { /* Nanti buka ke halaman detail */ }
     ) {
-        // Gambar Layout Sirkuit sebagai Background
-        if (trackImageUrl != null) {
+        // 1. Background Image (Foto Sirkuit/Pembalap)
+        if (topImageUrl != null) {
             AsyncImage(
-                model = trackImageUrl,
-                contentDescription = "Track Layout",
+                model = topImageUrl,
+                contentDescription = "Event Image",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                // Bikin gambarnya agak transparan/abu-abu biar teks kebaca
-                alpha = 0.3f 
+                modifier = Modifier.fillMaxSize()
             )
         }
 
-        // Overlay Gradient Gelap
+        // 2. Gradient Overlay (Biar teks kebaca)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -121,26 +122,86 @@ fun CircuitCard(event: EventResponse) {
                     )
                 )
         )
-        
-        // Teks
-        Column(
+
+        // 3. Track Outline (Garis Putih di tengah)
+        if (trackImageUrl != null) {
+            AsyncImage(
+                model = trackImageUrl,
+                contentDescription = "Track Map",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.6f))
+            )
+        }
+
+        // 4. Top Left: Mini MotoGP Logo & "VIDEO PASS" Text
+        Row(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(12.dp)
+                .align(Alignment.TopStart)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_motogp_logo),
+                contentDescription = "Logo",
+                modifier = Modifier.height(16.dp),
+                colorFilter = ColorFilter.tint(Color.White)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = event.circuit?.country?.uppercase() ?: "UNKNOWN",
-                color = MotoGPRed,
-                fontSize = 10.sp,
+                text = "VIDEOPASS",
+                color = Color.White,
+                fontSize = 8.sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+
+        // 5. Top Right: Bendera (Flag)
+        if (flagUrl != null) {
+            AsyncImage(
+                model = flagUrl,
+                contentDescription = "Flag",
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(4.dp))
+            )
+        }
+
+        // 6. Bottom: Judul Sirkuit & Tanggal
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = event.circuit?.name?.uppercase() ?: event.name,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = event.circuit?.country ?: "UNKNOWN",
+                    color = TextGray,
+                    fontSize = 12.sp
+                )
+            }
+            
+            // Tanggal ala VideoPass (contoh: 01 - 03 MAR)
             Text(
-                text = event.circuit?.name ?: event.name,
+                text = "📅 $dateText",
                 color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                lineHeight = 16.sp
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }

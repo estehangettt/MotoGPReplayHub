@@ -1,11 +1,10 @@
 package com.estehangettt.motogp.data
 
-import com.squareup.moshi.Json
-
 data class EventResponse(
     val id: String,
     val name: String,
     val kind: String,
+    val date_start: String?,
     val circuit: CircuitData?,
     val assets: List<Asset>?
 )
@@ -30,6 +29,6 @@ data class AssetImage(
 )
 
 data class Asset(
-    val type: String,
+    val type: String, // TOP, FLAG, BACKGROUND
     val path: String
 )
