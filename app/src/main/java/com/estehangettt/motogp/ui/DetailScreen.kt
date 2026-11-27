@@ -123,7 +123,6 @@ fun DetailScreen(
                                     loadingSession = sesi
                                     matchStatus = "Mencari link $sesi..."
                                     scope.launch {
-                                        val country = event.circuit?.country ?: ""
                                         val eventUrl = scraper.findEventUrl(event, 2026)
                                         
                                         if (eventUrl != null) {
@@ -139,7 +138,7 @@ fun DetailScreen(
                                         } else {
                                             loadingSession = null
                                             matchStatus = "URL MotoMundo tidak ditemukan"
-                                            Toast.makeText(context, "Gagal nemu halaman balapan $country di MotoMundo", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Gagal nemu halaman balapan ini di MotoMundo", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
