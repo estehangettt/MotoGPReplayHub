@@ -1,4 +1,4 @@
-package com.estahangettt.motogp
+package com.estehangettt.motogp
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

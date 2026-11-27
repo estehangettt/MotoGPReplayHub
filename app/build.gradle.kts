@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.estahangettt.motogp"
+    namespace = "com.estehangettt.motogp"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.estahangettt.motogp"
+        applicationId = "com.estehangettt.motogp"
         minSdk = 26 // Android 8.0 (biar support blur & exoplayer modern)
         targetSdk = 34
         versionCode = 1
