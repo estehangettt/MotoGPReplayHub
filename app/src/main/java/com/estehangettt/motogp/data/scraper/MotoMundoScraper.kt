@@ -8,22 +8,16 @@ import java.net.URLEncoder
 
 class MotoMundoScraper {
     
-    suspend fun findEventUrl(event: EventResponse): String? = withContext(Dispatchers.IO) {
+    suspend fun findEventUrl(event: EventResponse, year: Int): String? = withContext(Dispatchers.IO) {
         val country = event.circuit?.country?.lowercase()?.trim() ?: ""
         val circuitName = event.circuit?.name?.lowercase()?.trim() ?: ""
         
+        // Kumpulan keyword alternatif
         val keywords = mutableListOf<String>()
         
-        // Ambil keyword dari nama sirkuit (misal: "goiania", "americas", "jerez")
-        circuitName.split(" ").forEach { word ->
-            if (word.length > 4 && word != "circuit" && word != "international" && word != "autodromo" && word != "grand" && word != "prix") {
-                keywords.add(word)
-            }
-        }
-        
-        // Ambil keyword dari negara
+        // Mapping nama negara
         when {
-            country.contains("united states") -> keywords.add("americas")
+            country.contains("united states") -> { keywords.add("usa"); keywords.add("americas") }
             country.contains("france") -> keywords.add("french")
             country.contains("spain") -> keywords.add("spanish")
             country.contains("great britain") -> keywords.add("british")
@@ -31,29 +25,38 @@ class MotoMundoScraper {
             country.contains("czech") -> keywords.add("brno")
             country.contains("san marino") -> keywords.add("misano")
             country.contains("netherlands") -> keywords.add("dutch")
-            country.contains("brazil") -> keywords.add("brazil")
             else -> if (country.isNotBlank()) keywords.add(country)
+        }
+        
+        // Ambil kata dari nama sirkuit
+        circuitName.split(" ").forEach { word ->
+            if (word.length > 4 && word != "circuit" && word != "international" && word != "autodromo" && word != "grand" && word != "prix") {
+                keywords.add(word)
+            }
         }
 
         for (keyword in keywords.distinct()) {
             if (keyword.isBlank()) continue
+            val cleanKeyword = keyword.replace(" ", "-")
             
             try {
-                val searchUrl = "https://motomundo.net/?s=motogp+2026+${URLEncoder.encode(keyword, "UTF-8")}"
+                // Cari via search internal MotoMundo
+                val searchUrl = "https://motomundo.net/?s=motogp+$year+${URLEncoder.encode(cleanKeyword, "UTF-8")}"
                 val doc = Jsoup.connect(searchUrl)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                     .timeout(10000)
                     .get()
 
-                // Cari link KHUSUS di dalam judul artikel (h2 a, h3 a)
-                val links = doc.select("h2 a, h3 a, .entry-title a, .post-title a")
+                // Ambil SEMUA link di halaman itu
+                val links = doc.select("a")
                 for (link in links) {
                     val href = link.attr("href").lowercase()
                     
-                    // Harus ada tahun dan watch-online
+                    // FILTER MUTLAK: URL harus punya kata kunci ini
                     if (href.contains("motomundo.net") && 
-                        href.contains("motogp-2026") && 
-                        href.contains("watch-online")) {
+                        href.contains("motogp-$year") && 
+                        href.contains("watch-online") &&
+                        href.contains(cleanKeyword)) { // <--- INI KUNCI ANTI-KETUKER
                         return@withContext link.attr("href")
                     }
                 }
@@ -74,6 +77,8 @@ class MotoMundoScraper {
             val detailsList = doc.select("details")
             for (details in detailsList) {
                 val summary = details.selectFirst("summary")?.text() ?: continue
+                
+                // Cek sesi yang akurat (RACE gak bakal nangkep SPRINT)
                 val isMatch = summary.contains(Regex("\\b$sessionKeyword\\b", RegexOption.IGNORE_CASE))
                 
                 if (isMatch) {

@@ -28,7 +28,6 @@ fun AppNavigation() {
         popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) }
     ) {
         composable("home") {
-            // HomeScreen ngirim event dan index (tapi index gak dipake lagi)
             HomeScreen(onEventClick = { event, _ ->
                 navController.currentBackStackEntry?.savedStateHandle?.set("event", event)
                 navController.navigate("detail")
@@ -36,9 +35,7 @@ fun AppNavigation() {
         }
         composable("detail") {
             val event = navController.previousBackStackEntry?.savedStateHandle?.get<EventResponse>("event")
-            
             if (event != null) {
-                // DetailScreen CUMA nerima 'event', gak ada 'round' lagi
                 DetailScreen(
                     event = event,
                     onBackClick = { navController.popBackStack() },

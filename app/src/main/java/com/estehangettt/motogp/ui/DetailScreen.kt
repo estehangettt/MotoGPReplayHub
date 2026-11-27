@@ -123,8 +123,7 @@ fun DetailScreen(
                                     loadingSession = sesi
                                     matchStatus = "Mencari..."
                                     scope.launch {
-                                        // PANGGIL SCRAPER (CUMA KIRIM EVENT)
-                                        val eventUrl = scraper.findEventUrl(event)
+                                        val eventUrl = scraper.findEventUrl(event, 2026)
                                         
                                         if (eventUrl != null) {
                                             val embedUrl = scraper.getEmbedUrl(eventUrl, sesi)
