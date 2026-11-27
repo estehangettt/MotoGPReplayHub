@@ -39,10 +39,9 @@ fun DetailScreen(
     
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var loadingSession by remember { mutableStateOf<String?>(null) } // Lacak sesi mana yang loading
+    var loadingSession by remember { mutableStateOf<String?>(null) }
+    var matchStatus by remember { mutableStateOf("") }
     val scraper = remember { MotoMundoScraper() }
-
-    val testMotoMundoUrl = "https://motomundo.net/2026/11/motogp-2026-round-21-portuguesegp-algarve-watch-online/"
 
     Box(modifier = Modifier.fillMaxSize().background(MotoGPBlack)) {
         if (topImageUrl != null) {
@@ -97,7 +96,16 @@ fun DetailScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("PILIH SESI", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("PILIH SESI", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (matchStatus.isNotEmpty()) {
+                    Text(matchStatus, color = MotoGPRed, fontSize = 12.sp)
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
             
             val sessions = listOf("FP1", "FP2", "Q1", "Q2", "SPRINT", "RACE")
@@ -113,13 +121,25 @@ fun DetailScreen(
                             .bouncyClickable {
                                 if (loadingSession == null) {
                                     loadingSession = sesi
+                                    matchStatus = "Mencari link $sesi..."
                                     scope.launch {
-                                        val embedUrl = scraper.getEmbedUrl(testMotoMundoUrl, sesi)
-                                        loadingSession = null
-                                        if (embedUrl != null) {
-                                            onSessionClick(embedUrl)
+                                        val country = event.circuit?.country ?: ""
+                                        val eventUrl = scraper.findEventUrl(country, 2026)
+                                        
+                                        if (eventUrl != null) {
+                                            val embedUrl = scraper.getEmbedUrl(eventUrl, sesi)
+                                            loadingSession = null
+                                            matchStatus = ""
+                                            
+                                            if (embedUrl != null) {
+                                                onSessionClick(embedUrl)
+                                            } else {
+                                                Toast.makeText(context, "Video $sesi belum tersedia di MotoMundo", Toast.LENGTH_SHORT).show()
+                                            }
                                         } else {
-                                            Toast.makeText(context, "Gagal nemu video $sesi di MotoMundo", Toast.LENGTH_SHORT).show()
+                                            loadingSession = null
+                                            matchStatus = "URL MotoMundo tidak ditemukan"
+                                            Toast.makeText(context, "Gagal nemu halaman balapan $country di MotoMundo", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
