@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     event: EventResponse, 
-    round: Int,
     onBackClick: () -> Unit, 
     onSessionClick: (String) -> Unit
 ) {
@@ -122,10 +121,10 @@ fun DetailScreen(
                             .bouncyClickable {
                                 if (loadingSession == null) {
                                     loadingSession = sesi
-                                    matchStatus = "Mencari link $sesi..."
+                                    matchStatus = "Mencari..."
                                     scope.launch {
-                                        // PANGGIL SCRAPER PAKE NOMOR RONDE (ROUND)
-                                        val eventUrl = scraper.findEventUrl(round, 2026)
+                                        // PANGGIL SCRAPER (CUMA KIRIM EVENT)
+                                        val eventUrl = scraper.findEventUrl(event)
                                         
                                         if (eventUrl != null) {
                                             val embedUrl = scraper.getEmbedUrl(eventUrl, sesi)
@@ -140,7 +139,7 @@ fun DetailScreen(
                                         } else {
                                             loadingSession = null
                                             matchStatus = "URL tidak ditemukan"
-                                            Toast.makeText(context, "Gagal nemu halaman Round $round", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Gagal nemu halaman balapan ini", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
