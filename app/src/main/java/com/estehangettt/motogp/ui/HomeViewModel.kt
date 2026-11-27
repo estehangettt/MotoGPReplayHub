@@ -24,7 +24,9 @@ class HomeViewModel : ViewModel() {
     private fun fetchEvents() {
         viewModelScope.launch {
             _isLoading.value = true
-            _events.value = api.getEvents(2026)
+            // WAJIB DI-SORT BERDASARKAN TANGGAL BIAR URUTAN RONDE BENER
+            val rawEvents = api.getEvents(2026)
+            _events.value = rawEvents.sortedBy { it.date_start }
             _isLoading.value = false
         }
     }

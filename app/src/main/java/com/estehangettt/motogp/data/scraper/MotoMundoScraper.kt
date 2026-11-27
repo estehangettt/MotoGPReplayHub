@@ -1,67 +1,44 @@
 package com.estehangettt.motogp.data.scraper
 
-import com.estehangettt.motogp.data.EventResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
-import java.net.URLEncoder
 
 class MotoMundoScraper {
     
-    suspend fun findEventUrl(event: EventResponse, year: Int): String? = withContext(Dispatchers.IO) {
-        val country = event.circuit?.country?.lowercase()?.trim() ?: ""
-        val circuitName = event.circuit?.name?.lowercase()?.trim() ?: ""
+    suspend fun findEventUrl(round: Int, year: Int): String? = withContext(Dispatchers.IO) {
+        // Cari berdasarkan nomor ronde! (contoh: motogp 2026 round 3)
+        val searchUrl = "https://motomundo.net/?s=motogp+$year+round+$round"
         
-        val keywords = mutableListOf<String>()
-        
-        // Mapping nama negara
-        when {
-            country.contains("united states") -> keywords.add("usa")
-            country.contains("france") -> keywords.add("french")
-            country.contains("spain") -> keywords.add("spanish")
-            country.contains("great britain") -> keywords.add("british")
-            country.contains("italy") -> keywords.add("italian")
-            country.contains("czech") -> keywords.add("brno")
-            country.contains("san marino") -> keywords.add("misano")
-            country.contains("netherlands") -> keywords.add("dutch")
-            country.contains("south africa") -> keywords.add("south-africa")
-            else -> if (country.isNotBlank()) keywords.add(country)
-        }
-        
-        // Tambahan keyword dari nama sirkuit
-        if (circuitName.contains("americas")) keywords.add("americas")
-        if (circuitName.contains("jerez")) keywords.add("jerez")
-        if (circuitName.contains("lemans") || circuitName.contains("le mans")) keywords.add("le-mans")
-        if (circuitName.contains("mugello")) keywords.add("mugello")
-        if (circuitName.contains("mandalika")) keywords.add("mandalika")
-        if (circuitName.contains("algarve") || circuitName.contains("portimao")) keywords.add("portugal")
+        try {
+            val doc = Jsoup.connect(searchUrl)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .timeout(10000)
+                .get()
 
-        for (keyword in keywords.distinct()) {
-            if (keyword.isBlank()) continue
-            
-            try {
-                val searchUrl = "https://motomundo.net/?s=motogp+$year+${URLEncoder.encode(keyword, "UTF-8")}"
-                val doc = Jsoup.connect(searchUrl)
-                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                    .timeout(10000)
-                    .get()
-
-                val links = doc.select("a")
-                for (link in links) {
-                    val href = link.attr("href").lowercase()
+            val links = doc.select("a[href]")
+            for (link in links) {
+                val href = link.attr("href").lowercase()
+                
+                // Harus ada "motogp-2026", "watch-online", DAN "round-X"
+                if (href.contains("motomundo.net") && 
+                    href.contains("motogp-$year") && 
+                    href.contains("watch-online")) {
                     
-                    if (href.contains("motomundo.net") && 
-                        href.contains("motogp-$year") && 
-                        href.contains("watch-online") &&
-                        href.contains(keyword.replace(" ", "-"))) {
+                    // Cek apakah ini ronde yang bener (antisipasi round-1 ketuker sama round-10)
+                    val regexRound = Regex("round-$round-")
+                    val regexRoundZero = Regex("round-0$round-") // Kadang ada yang pake 01
+                    
+                    if (regexRound.containsMatchIn(href) || regexRoundZero.containsMatchIn(href)) {
                         return@withContext link.attr("href")
                     }
                 }
-            } catch (e: Exception) {
-                // Lanjut keyword selanjutnya
             }
+            null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
-        null
     }
 
     suspend fun getEmbedUrl(motomundoUrl: String, sessionKeyword: String): String? = withContext(Dispatchers.IO) {

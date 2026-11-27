@@ -28,16 +28,20 @@ fun AppNavigation() {
         popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) }
     ) {
         composable("home") {
-            HomeScreen(onEventClick = { event ->
+            HomeScreen(onEventClick = { event, round ->
                 navController.currentBackStackEntry?.savedStateHandle?.set("event", event)
+                navController.currentBackStackEntry?.savedStateHandle?.set("round", round)
                 navController.navigate("detail")
             })
         }
         composable("detail") {
             val event = navController.previousBackStackEntry?.savedStateHandle?.get<EventResponse>("event")
+            val round = navController.previousBackStackEntry?.savedStateHandle?.get<Int>("round") ?: 1
+            
             if (event != null) {
                 DetailScreen(
                     event = event,
+                    round = round,
                     onBackClick = { navController.popBackStack() },
                     onSessionClick = { embedUrl ->
                         val encodedUrl = URLEncoder.encode(embedUrl, "UTF-8")
@@ -52,10 +56,7 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val encodedUrl = backStackEntry.arguments?.getString("embedUrl") ?: ""
             val decodedUrl = URLDecoder.decode(encodedUrl, "UTF-8")
-            PlayerScreen(
-                embedUrl = decodedUrl,
-                onBackClick = { navController.popBackStack() }
-            )
+            PlayerScreen(embedUrl = decodedUrl, onBackClick = { navController.popBackStack() })
         }
     }
 }

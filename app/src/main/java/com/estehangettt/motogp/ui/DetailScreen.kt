@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     event: EventResponse, 
+    round: Int,
     onBackClick: () -> Unit, 
     onSessionClick: (String) -> Unit
 ) {
@@ -123,7 +124,8 @@ fun DetailScreen(
                                     loadingSession = sesi
                                     matchStatus = "Mencari link $sesi..."
                                     scope.launch {
-                                        val eventUrl = scraper.findEventUrl(event, 2026)
+                                        // PANGGIL SCRAPER PAKE NOMOR RONDE (ROUND)
+                                        val eventUrl = scraper.findEventUrl(round, 2026)
                                         
                                         if (eventUrl != null) {
                                             val embedUrl = scraper.getEmbedUrl(eventUrl, sesi)
@@ -133,12 +135,12 @@ fun DetailScreen(
                                             if (embedUrl != null) {
                                                 onSessionClick(embedUrl)
                                             } else {
-                                                Toast.makeText(context, "Video $sesi belum tersedia di MotoMundo", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Video $sesi belum tersedia", Toast.LENGTH_SHORT).show()
                                             }
                                         } else {
                                             loadingSession = null
-                                            matchStatus = "URL MotoMundo tidak ditemukan"
-                                            Toast.makeText(context, "Gagal nemu halaman balapan ini di MotoMundo", Toast.LENGTH_SHORT).show()
+                                            matchStatus = "URL tidak ditemukan"
+                                            Toast.makeText(context, "Gagal nemu halaman Round $round", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
