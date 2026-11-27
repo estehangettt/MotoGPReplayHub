@@ -12,26 +12,30 @@ class MotoMundoScraper {
         val country = event.circuit?.country?.lowercase()?.trim() ?: ""
         val circuitName = event.circuit?.name?.lowercase()?.trim() ?: ""
         
-        // Bikin daftar kata kunci pencarian (dari negara & sirkuit)
-        val keywords = mutableListOf<String>()
-        if (country.isNotEmpty()) keywords.add(country)
+        // Kata kunci utama berdasarkan negara
+        var mainKeyword = country
         
-        // Mapping nama negara khusus
+        // Mapping nama negara ke nama yang dipakai MotoMundo
         when {
-            country.contains("united states") -> keywords.add("usa")
-            country.contains("france") -> keywords.add("french")
-            country.contains("spain") -> keywords.add("spanish")
-            country.contains("great britain") -> keywords.add("british")
-            country.contains("italy") -> keywords.add("italian")
+            country.contains("united states") -> mainKeyword = "usa"
+            country.contains("france") -> mainKeyword = "french"
+            country.contains("spain") -> mainKeyword = "spanish"
+            country.contains("great britain") -> mainKeyword = "british"
+            country.contains("italy") -> mainKeyword = "italian"
+            country.contains("san marino") -> mainKeyword = "misano"
+            country.contains("czech") -> mainKeyword = "brno"
         }
+
+        // Daftar keyword yang bakal dicoba
+        val keywords = mutableListOf(mainKeyword)
         
-        // Ambil potongan nama sirkuit (misal: "americas" dari "Circuit of the Americas")
+        // Tambahin keyword dari nama sirkuit (misal: "jerez", "americas", "lemans")
         val words = circuitName.split(" ").filter { it.length > 3 && it != "circuit" && it != "international" && it != "grand" }
         keywords.addAll(words)
 
         for (keyword in keywords) {
-            val searchUrl = "https://motomundo.net/?s=motogp+$year+${URLEncoder.encode(keyword, "UTF-8")}"
             try {
+                val searchUrl = "https://motomundo.net/?s=motogp+$year+${URLEncoder.encode(keyword, "UTF-8")}"
                 val doc = Jsoup.connect(searchUrl)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                     .timeout(10000)
@@ -39,14 +43,17 @@ class MotoMundoScraper {
 
                 val links = doc.select("a[href]")
                 for (link in links) {
-                    val href = link.attr("href")
-                    if (href.contains("motogp-$year", ignoreCase = true) && 
-                        href.contains("watch-online", ignoreCase = true)) {
-                        return@withContext href
+                    val href = link.attr("href").lowercase()
+                    
+                    // SYARAT KETAT: Harus ada tahun, harus watch-online, DAN harus ada keyword-nya!
+                    if (href.contains("motogp-$year") && 
+                        href.contains("watch-online") && 
+                        href.contains(keyword)) {
+                        return@withContext link.attr("href")
                     }
                 }
             } catch (e: Exception) {
-                // Lanjut ke keyword selanjutnya kalau error
+                // Lanjut keyword selanjutnya
             }
         }
         null
@@ -62,7 +69,11 @@ class MotoMundoScraper {
             val detailsList = doc.select("details")
             for (details in detailsList) {
                 val summary = details.selectFirst("summary")?.text() ?: continue
-                if (summary.contains(sessionKeyword, ignoreCase = true)) {
+                
+                // Pastikan nyari kata utuh (biar "RACE" gak nangkep "SPRINT" atau sebaliknya)
+                val isMatch = summary.contains(Regex("\\b$sessionKeyword\\b", RegexOption.IGNORE_CASE))
+                
+                if (isMatch) {
                     val iframes = details.select("iframe")
                     for (iframe in iframes) {
                         val src = iframe.attr("data-src").ifEmpty { iframe.attr("src") }
