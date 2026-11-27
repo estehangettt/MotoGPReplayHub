@@ -124,7 +124,7 @@ fun DetailScreen(
                                     matchStatus = "Mencari link $sesi..."
                                     scope.launch {
                                         val country = event.circuit?.country ?: ""
-                                        val eventUrl = scraper.findEventUrl(country, 2026)
+                                        val eventUrl = scraper.findEventUrl(event, 2026)
                                         
                                         if (eventUrl != null) {
                                             val embedUrl = scraper.getEmbedUrl(eventUrl, sesi)
