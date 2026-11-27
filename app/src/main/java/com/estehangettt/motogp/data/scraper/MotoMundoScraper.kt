@@ -14,59 +14,73 @@ class MotoMundoScraper {
         val country = event.circuit?.country?.lowercase()?.trim() ?: ""
         val circuitName = event.circuit?.name?.lowercase()?.trim() ?: ""
         
-        // 1. Ambil SEMUA post dari API WordPress MotoMundo (kategori 212 = 2026)
-        val url = "https://motomundo.net/wp-json/wp/v2/posts?categories=212&per_page=100&_fields=link,slug"
-        val request = Request.Builder().url(url).build()
+        // Kumpulan keyword yang PASTI dipakai MotoMundo
+        val keywords = mutableListOf<String>()
         
-        try {
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext null
-            val jsonArray = JSONArray(body)
-            
-            // 2. Iterasi semua URL, cari yang cocok
-            for (i in 0 until jsonArray.length()) {
-                val post = jsonArray.getJSONObject(i)
-                val slug = post.getString("slug").lowercase()
-                val link = post.getString("link")
-                
-                // Cek apakah slug mengandung nama negara atau sirkuit
-                var isMatch = false
-                
-                // Cek nama sirkuit (misal: "jerez", "americas", "goiania")
-                circuitName.split(" ").forEach { word ->
-                    if (word.length > 4 && slug.contains(word)) {
-                        isMatch = true
-                    }
-                }
-                
-                // Cek negara (dengan mapping khusus)
-                if (!isMatch) {
-                    when {
-                        country.contains("united states") && slug.contains("usa") -> isMatch = true
-                        country.contains("france") && slug.contains("french") -> isMatch = true
-                        country.contains("spain") && slug.contains("spanish") -> isMatch = true
-                        country.contains("great britain") && slug.contains("british") -> isMatch = true
-                        country.contains("italy") && slug.contains("italian") -> isMatch = true
-                        country.contains("czech") && slug.contains("brno") -> isMatch = true
-                        country.contains("san marino") && slug.contains("misano") -> isMatch = true
-                        country.contains("netherlands") && slug.contains("dutch") -> isMatch = true
-                        country.isNotBlank() && slug.contains(country) -> isMatch = true
-                    }
-                }
-
-                if (isMatch) {
-                    return@withContext link
-                }
+        when {
+            country.contains("united states") -> keywords.add("americas") // COTA selalu americas
+            country.contains("france") -> keywords.add("french")
+            country.contains("spain") -> keywords.add("spanish")
+            country.contains("great britain") -> keywords.add("british")
+            country.contains("italy") -> keywords.add("italian")
+            country.contains("czech") -> keywords.add("brno")
+            country.contains("san marino") -> keywords.add("misano")
+            country.contains("netherlands") -> keywords.add("dutch")
+            country.contains("portugal") -> keywords.add("portugal")
+            country.contains("indonesia") -> keywords.add("mandalika")
+            country.contains("thailand") -> keywords.add("thailand")
+            country.contains("qatar") -> keywords.add("qatar")
+            else -> if (country.isNotBlank()) keywords.add(country)
+        }
+        
+        // Tambahin keyword dari nama sirkuit
+        circuitName.split(" ").forEach { word ->
+            if (word.length > 4 && word != "circuit" && word != "international" && word != "autodromo" && word != "grand" && word != "prix") {
+                keywords.add(word)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        }
+
+        for (keyword in keywords.distinct()) {
+            if (keyword.isBlank()) continue
+            
+            // Pakai endpoint SEARCH WP REST API
+            val searchQuery = "motogp $year $keyword"
+            val url = "https://motomundo.net/wp-json/wp/v2/search?search=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&per_page=10&_fields=url,title"
+            
+            try {
+                val request = Request.Builder().url(url).build()
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: continue
+                val jsonArray = JSONArray(body)
+                
+                for (i in 0 until jsonArray.length()) {
+                    val post = jsonArray.getJSONObject(i)
+                    val link = post.getString("url").lowercase()
+                    
+                    // FILTER MUTLAK:
+                    // 1. Harus ada 'motogp' (anti WCR/F1)
+                    // 2. Harus ada 'watch-online'
+                    // 3. Harus ada keyword (anti ketuker)
+                    if (link.contains("motogp-$year") && 
+                        link.contains("watch-online") && 
+                        link.contains(keyword)) {
+                        return@withContext post.getString("url")
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         null
     }
 
     suspend fun getEmbedUrl(motomundoUrl: String, sessionKeyword: String): String? = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder().url(motomundoUrl).build()
+            // Wajib pakai header User-Agent saat buka halaman MotoMundo
+            val request = Request.Builder()
+                .url(motomundoUrl)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .build()
             val response = client.newCall(request).execute()
             val html = response.body?.string() ?: return@withContext null
             
@@ -74,7 +88,14 @@ class MotoMundoScraper {
             val detailsList = doc.select("details")
             for (details in detailsList) {
                 val summary = details.selectFirst("summary")?.text() ?: continue
-                val isMatch = summary.contains(Regex("\\b$sessionKeyword\\b", RegexOption.IGNORE_CASE))
+                
+                // Pengecekan sesi yang lebih pintar:
+                // Kalau nyari "RACE", pastiin BUKAN "SPRINT RACE"
+                val isMatch = if (sessionKeyword.uppercase() == "RACE") {
+                    summary.contains("race", ignoreCase = true) && !summary.contains("sprint", ignoreCase = true)
+                } else {
+                    summary.contains(sessionKeyword, ignoreCase = true)
+                }
                 
                 if (isMatch) {
                     val iframes = details.select("iframe")
