@@ -18,7 +18,8 @@ android {
     }
 
     signingConfigs {
-        create("debug") {
+        // GANTI NAMA JADI myDebug BIAR GAK BENTROK
+        create("myDebug") {
             storeFile = file("../debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
@@ -28,7 +29,8 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            // PANGGIL YANG myDebug
+            signingConfig = signingConfigs.getByName("myDebug")
         }
     }
 
@@ -54,28 +56,23 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     
-    // Compose
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended") // Buat icon lengkap
+    implementation("androidx.compose.material:material-icons-extended")
     
-    // Networking & Scraping
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.17.2")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
     
-    // Image Loading (Biar bisa render SVG bendera)
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-svg:2.6.0")
     
-    // ExoPlayer
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
 
-    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
