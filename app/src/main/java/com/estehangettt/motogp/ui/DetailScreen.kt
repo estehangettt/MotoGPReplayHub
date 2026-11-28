@@ -33,7 +33,7 @@ fun DetailScreen(
     event: EventResponse, 
     round: Int,
     onBackClick: () -> Unit, 
-    onSessionClick: (String) -> Unit
+    onSessionClick: (String, String) -> Unit // Tambah parameter String kedua buat Judul
 ) {
     val topImageUrl = event.assets?.find { it.type == "TOP" || it.type == "BACKGROUND" }?.path
     val flagUrl = event.assets?.find { it.type == "FLAG" }?.path
@@ -132,7 +132,9 @@ fun DetailScreen(
                                             matchStatus = ""
                                             
                                             if (embedUrl != null) {
-                                                onSessionClick(embedUrl)
+                                                // Kirim Judul Video: "MotoGP 2026 - RACE - Circuit Name"
+                                                val videoTitle = "MotoGP 2026 • $sesi • ${event.circuit?.name ?: event.name}"
+                                                onSessionClick(embedUrl, videoTitle)
                                             } else {
                                                 Toast.makeText(context, "Video $sesi belum tersedia", Toast.LENGTH_SHORT).show()
                                             }

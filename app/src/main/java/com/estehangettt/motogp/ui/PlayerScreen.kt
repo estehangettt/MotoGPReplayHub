@@ -20,7 +20,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -35,17 +37,15 @@ import com.estehangettt.motogp.ui.theme.MotoGPRed
 import com.estehangettt.motogp.ui.theme.GlassWhite
 
 @Composable
-fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
+fun PlayerScreen(embedUrl: String, title: String, onBackClick: () -> Unit) {
     var m3u8Url by remember { mutableStateOf<String?>(null) }
     var debugStatus by remember { mutableStateOf("Mengekstrak Link Video...") }
-    // State buat ngecek kontrol ExoPlayer lagi muncul atau gak
     var isControllerVisible by remember { mutableStateOf(true) }
     
     val context = LocalContext.current
     val exoPlayer = remember { ExoPlayer.Builder(context).build().apply { playWhenReady = true } }
     val extractor = remember { MotoMundoStreamExtractor() }
 
-    // 1. Ekstrak m3u8
     LaunchedEffect(embedUrl) {
         val url = extractor.extractM3u8(embedUrl)
         if (url != null) {
@@ -55,7 +55,6 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
         }
     }
 
-    // 2. Putar Video
     LaunchedEffect(m3u8Url) {
         m3u8Url?.let { url ->
             val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -72,7 +71,6 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
         }
     }
 
-    // 3. Handle Orientasi & Fullscreen
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -102,12 +100,7 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
                     PlayerView(ctx).apply { 
                         player = exoPlayer
                         useController = true 
-                        
-                        // Fitur Profesional ExoPlayer
-                        setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING) // Spinner pas lag
-                        setShowMultiWindowTimeBar(false)
-                        
-                        // Dengerin kalau kontrolnya disembunyiin/munculin
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                         setControllerVisibilityListener(
                             PlayerView.ControllerVisibilityListener { visibility ->
                                 isControllerVisible = (visibility == View.VISIBLE)
@@ -128,18 +121,28 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
             }
         }
 
-        // Tombol Back (Sekarang ilang muncul ngikutin kontrol video)
+        // OVERLAY ATAS (Tombol Back + Judul)
         AnimatedVisibility(
             visible = isControllerVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.TopStart).padding(top = 24.dp, start = 24.dp)
         ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.background(GlassWhite, RoundedCornerShape(50))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                    .padding(end = 16.dp)
             ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
             }
         }
     }

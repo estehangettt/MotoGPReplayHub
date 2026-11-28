@@ -43,20 +43,26 @@ fun AppNavigation() {
                     event = event,
                     round = round,
                     onBackClick = { navController.popBackStack() },
-                    onSessionClick = { embedUrl ->
+                    onSessionClick = { embedUrl, title ->
                         val encodedUrl = URLEncoder.encode(embedUrl, "UTF-8")
-                        navController.navigate("player/$encodedUrl")
+                        val encodedTitle = URLEncoder.encode(title, "UTF-8")
+                        navController.navigate("player/$encodedUrl/$encodedTitle")
                     }
                 )
             }
         }
         composable(
-            route = "player/{embedUrl}",
-            arguments = listOf(navArgument("embedUrl") { type = NavType.StringType })
+            route = "player/{embedUrl}/{title}",
+            arguments = listOf(
+                navArgument("embedUrl") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val encodedUrl = backStackEntry.arguments?.getString("embedUrl") ?: ""
+            val encodedTitle = backStackEntry.arguments?.getString("title") ?: ""
             val decodedUrl = URLDecoder.decode(encodedUrl, "UTF-8")
-            PlayerScreen(embedUrl = decodedUrl, onBackClick = { navController.popBackStack() })
+            val decodedTitle = URLDecoder.decode(encodedTitle, "UTF-8")
+            PlayerScreen(embedUrl = decodedUrl, title = decodedTitle, onBackClick = { navController.popBackStack() })
         }
     }
 }
