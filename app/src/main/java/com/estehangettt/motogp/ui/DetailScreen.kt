@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     event: EventResponse, 
+    round: Int,
     onBackClick: () -> Unit, 
     onSessionClick: (String) -> Unit
 ) {
@@ -123,7 +124,7 @@ fun DetailScreen(
                                     loadingSession = sesi
                                     matchStatus = "Mencari..."
                                     scope.launch {
-                                        val eventUrl = scraper.findEventUrl(event, 2026)
+                                        val eventUrl = scraper.findEventUrl(event, 2026, round)
                                         
                                         if (eventUrl != null) {
                                             val embedUrl = scraper.getEmbedUrl(eventUrl, sesi)

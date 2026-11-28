@@ -10,91 +10,110 @@ import org.json.JSONArray
 class MotoMundoScraper {
     private val client = OkHttpClient()
 
-    suspend fun findEventUrl(event: EventResponse, year: Int): String? = withContext(Dispatchers.IO) {
-        val country = event.circuit?.country?.lowercase()?.trim() ?: ""
-        val circuitName = event.circuit?.name?.lowercase()?.trim() ?: ""
+    // 1. CARI URL HALAMAN BALAPAN (Berdasarkan Nomor Ronde)
+    suspend fun findEventUrl(event: EventResponse, year: Int, round: Int): String? = withContext(Dispatchers.IO) {
+        // Kita tembak API WordPress MotoMundo, cari yang judulnya persis "MotoGP 2026 Round XX"
+        val searchQuery = "MotoGP 2026 Round $round"
+        val url = "https://motomundo.net/wp-json/wp/v2/search?search=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&per_page=5&_fields=url,title"
         
-        // Kumpulan keyword yang PASTI dipakai MotoMundo
-        val keywords = mutableListOf<String>()
-        
-        when {
-            country.contains("united states") -> keywords.add("americas") // COTA selalu americas
-            country.contains("france") -> keywords.add("french")
-            country.contains("spain") -> keywords.add("spanish")
-            country.contains("great britain") -> keywords.add("british")
-            country.contains("italy") -> keywords.add("italian")
-            country.contains("czech") -> keywords.add("brno")
-            country.contains("san marino") -> keywords.add("misano")
-            country.contains("netherlands") -> keywords.add("dutch")
-            country.contains("portugal") -> keywords.add("portugal")
-            country.contains("indonesia") -> keywords.add("mandalika")
-            country.contains("thailand") -> keywords.add("thailand")
-            country.contains("qatar") -> keywords.add("qatar")
-            else -> if (country.isNotBlank()) keywords.add(country)
-        }
-        
-        // Tambahin keyword dari nama sirkuit
-        circuitName.split(" ").forEach { word ->
-            if (word.length > 4 && word != "circuit" && word != "international" && word != "autodromo" && word != "grand" && word != "prix") {
-                keywords.add(word)
-            }
-        }
-
-        for (keyword in keywords.distinct()) {
-            if (keyword.isBlank()) continue
+        try {
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return@withContext null
+            val jsonArray = JSONArray(body)
             
-            // Pakai endpoint SEARCH WP REST API
-            val searchQuery = "motogp $year $keyword"
-            val url = "https://motomundo.net/wp-json/wp/v2/search?search=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&per_page=10&_fields=url,title"
-            
-            try {
-                val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: continue
-                val jsonArray = JSONArray(body)
+            for (i in 0 until jsonArray.length()) {
+                val post = jsonArray.getJSONObject(i)
+                val link = post.getString("url").lowercase()
+                val title = post.getString("title").lowercase()
                 
-                for (i in 0 until jsonArray.length()) {
-                    val post = jsonArray.getJSONObject(i)
-                    val link = post.getString("url").lowercase()
-                    
-                    // FILTER MUTLAK:
-                    // 1. Harus ada 'motogp' (anti WCR/F1)
-                    // 2. Harus ada 'watch-online'
-                    // 3. Harus ada keyword (anti ketuker)
-                    if (link.contains("motogp-$year") && 
-                        link.contains("watch-online") && 
-                        link.contains(keyword)) {
-                        return@withContext post.getString("url")
-                    }
+                // FILTER MUTLAK:
+                // Harus ada 'motogp-2026' (anti WCR), harus ada 'round-X' atau judulnya ada round
+                if (link.contains("motogp-2026") && 
+                    link.contains("watch-online") &&
+                    (link.contains("round-$round") || title.contains("round $round"))) {
+                    return@withContext post.getString("url")
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+            
+            // Kalau ronde gak nemu (misal API MotoGP urutannya beda sama MotoMundo),
+            // Kita Fallback ke nama negara
+            return@withContext findFallbackUrl(event, year)
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
-        null
     }
 
+    private fun findFallbackUrl(event: EventResponse, year: Int): String? {
+        val country = event.circuit?.country?.lowercase() ?: return null
+        val searchQuery = "MotoGP 2026 $country"
+        val url = "https://motomundo.net/wp-json/wp/v2/search?search=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&per_page=5&_fields=url"
+        
+        try {
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return null
+            val jsonArray = JSONArray(body)
+            
+            for (i in 0 until jsonArray.length()) {
+                val post = jsonArray.getJSONObject(i)
+                val link = post.getString("url").lowercase()
+                // Harus MotoGP, jangan WCR
+                if (link.contains("motogp-$year") && link.contains("watch-online")) {
+                    return post.getString("url")
+                }
+            }
+        } catch (e: Exception) {}
+        return null
+    }
+
+    // 2. CARI LINK VIDEO DI DALAM HALAMAN (Khusus MotoGP)
     suspend fun getEmbedUrl(motomundoUrl: String, sessionKeyword: String): String? = withContext(Dispatchers.IO) {
         try {
-            // Wajib pakai header User-Agent saat buka halaman MotoMundo
-            val request = Request.Builder()
-                .url(motomundoUrl)
+            val request = Request.Builder().url(motomundoUrl)
                 .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                 .build()
             val response = client.newCall(request).execute()
             val html = response.body?.string() ?: return@withContext null
             
             val doc = org.jsoup.Jsoup.parse(html)
-            val detailsList = doc.select("details")
-            for (details in detailsList) {
+            
+            // Cari heading yang tulisannya "MotoGP" (Biar gak salah ambil Moto2/Moto3)
+            val motogpHeading = doc.select("h2:contains(MotoGP), h3:contains(MotoGP)").firstOrNull()
+            
+            // Kumpulin semua tag <details> yang ada di bawah heading MotoGP
+            val validDetails = mutableListOf<org.jsoup.nodes.Element>()
+            
+            if (motogpHeading != null) {
+                var sibling = motogpHeading.nextElementSibling()
+                while (sibling != null) {
+                    val text = sibling.text()
+                    // Kalau udah masuk seksi Moto2, berhenti nyari
+                    if (text.contains("Moto2", ignoreCase = true) || text.contains("Moto3", ignoreCase = true)) {
+                        break
+                    }
+                    // Kumpulin <details> di seksi MotoGP
+                    validDetails.addAll(sibling.select("details"))
+                    if (sibling.tagName() == "details") validDetails.add(sibling)
+                    
+                    sibling = sibling.nextElementSibling()
+                }
+            } else {
+                // Fallback kalau heading gak ketemu, ambil semua details
+                validDetails.addAll(doc.select("details"))
+            }
+
+            // Cari sesi (RACE/FP1/Q2) di dalam list details MotoGP
+            for (details in validDetails) {
                 val summary = details.selectFirst("summary")?.text() ?: continue
                 
-                // Pengecekan sesi yang lebih pintar:
-                // Kalau nyari "RACE", pastiin BUKAN "SPRINT RACE"
+                // Regex anti SPRINT ketuker sama RACE
                 val isMatch = if (sessionKeyword.uppercase() == "RACE") {
-                    summary.contains("race", ignoreCase = true) && !summary.contains("sprint", ignoreCase = true)
+                    summary.contains("race", true) && !summary.contains("sprint", true)
                 } else {
-                    summary.contains(sessionKeyword, ignoreCase = true)
+                    summary.contains(sessionKeyword, true)
                 }
                 
                 if (isMatch) {
