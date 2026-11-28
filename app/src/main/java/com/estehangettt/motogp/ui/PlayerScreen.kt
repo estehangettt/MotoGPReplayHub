@@ -4,7 +4,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.view.View
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +38,8 @@ import com.estehangettt.motogp.ui.theme.GlassWhite
 fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
     var m3u8Url by remember { mutableStateOf<String?>(null) }
     var debugStatus by remember { mutableStateOf("Mengekstrak Link Video...") }
+    // State buat ngecek kontrol ExoPlayer lagi muncul atau gak
+    var isControllerVisible by remember { mutableStateOf(true) }
     
     val context = LocalContext.current
     val exoPlayer = remember { ExoPlayer.Builder(context).build().apply { playWhenReady = true } }
@@ -66,16 +72,14 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
         }
     }
 
-    // 3. Handle Orientasi & Fullscreen & KEEP SCREEN ON
+    // 3. Handle Orientasi & Fullscreen
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         
         val window = activity?.window
         if (window != null) {
-            // KUNCI LAYAR BIAR GAK MATI
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -85,7 +89,6 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
             exoPlayer.release()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (window != null) {
-                // LEPAS KUNCI LAYAR
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 WindowCompat.getInsetsController(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
             }
@@ -95,7 +98,23 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (m3u8Url != null) {
             AndroidView(
-                factory = { ctx -> PlayerView(ctx).apply { player = exoPlayer; useController = true } },
+                factory = { ctx -> 
+                    PlayerView(ctx).apply { 
+                        player = exoPlayer
+                        useController = true 
+                        
+                        // Fitur Profesional ExoPlayer
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING) // Spinner pas lag
+                        setShowMultiWindowTimeBar(false)
+                        
+                        // Dengerin kalau kontrolnya disembunyiin/munculin
+                        setControllerVisibilityListener(
+                            PlayerView.ControllerVisibilityListener { visibility ->
+                                isControllerVisible = (visibility == View.VISIBLE)
+                            }
+                        )
+                    } 
+                },
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -109,14 +128,19 @@ fun PlayerScreen(embedUrl: String, onBackClick: () -> Unit) {
             }
         }
 
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 24.dp, start = 24.dp)
-                .background(GlassWhite, RoundedCornerShape(50))
+        // Tombol Back (Sekarang ilang muncul ngikutin kontrol video)
+        AnimatedVisibility(
+            visible = isControllerVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopStart).padding(top = 24.dp, start = 24.dp)
         ) {
-            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.background(GlassWhite, RoundedCornerShape(50))
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
         }
     }
 }
